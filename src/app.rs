@@ -18,11 +18,14 @@ use axum::http::Method;
 use axum::http::Request;
 use axum::http::StatusCode;
 use axum::http::Uri;
+use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Router;
+use axum_extra::body::AsyncReadBody;
 use httpdate::HttpDate;
 use humantime::format_duration;
 use percent_encoding::percent_decode_str;
+use tokio::fs::File;
 use tower_http::trace::TraceLayer;
 use tracing::Span;
 
@@ -30,6 +33,7 @@ use crate::config::Config;
 use crate::encoding::ClientEncodingSupport;
 use crate::file_cache::FileCache;
 use crate::file_cache::FileCacheEntry;
+use crate::file_cache::FileCacheEntryContent;
 use crate::paths::collect_paths_to_try;
 use crate::paths::PathToTry;
 
@@ -74,7 +78,7 @@ pub fn app(state: ServerState) -> Router {
 enum ServeFileResponse {
     Found {
         headers: HeaderMap,
-        content: Vec<u8>,
+        content: FileCacheEntryContent,
     },
     NotModified {
         headers: HeaderMap,
@@ -126,6 +130,7 @@ async fn serve_file(
         FileCacheEntry::Found {
             content,
             content_type,
+            content_length,
             last_modified,
         } => {
             let mut headers = HeaderMap::new();
@@ -143,12 +148,9 @@ async fn serve_file(
                 }
             }
 
-            headers.insert(CONTENT_LENGTH, content.len().into());
+            headers.insert(CONTENT_LENGTH, content_length.into());
 
-            ServeFileResponse::Found {
-                headers,
-                content: content.to_vec(),
-            }
+            ServeFileResponse::Found { headers, content }
         }
 
         FileCacheEntry::NotFound => ServeFileResponse::NotFound,
@@ -160,7 +162,7 @@ async fn root(
     method: Method,
     uri: Uri,
     incoming_headers: HeaderMap,
-) -> (StatusCode, HeaderMap, Vec<u8>) {
+) -> Response {
     let path = uri.path().trim_start_matches('/');
     let path = percent_decode_str(path).decode_utf8().ok().unwrap();
     let path = PathBuf::from(&*path);
@@ -171,7 +173,7 @@ async fn root(
         .all(|comp| matches!(comp, Component::Normal(_)));
 
     if !is_valid {
-        return (StatusCode::FOUND, HeaderMap::new(), vec![]);
+        return StatusCode::BAD_REQUEST.into_response();
     }
 
     let client_encoding_support = ClientEncodingSupport::from_header_map(&incoming_headers);
@@ -202,14 +204,24 @@ async fn root(
 
                 return if method == Method::HEAD {
                     // HEAD-method expects no content
-                    (StatusCode::OK, headers, vec![])
+                    (StatusCode::OK, headers).into_response()
                 } else {
-                    (StatusCode::OK, headers, content)
+                    match content {
+                        FileCacheEntryContent::Cached(content) => {
+                            (StatusCode::OK, headers, content.to_vec()).into_response()
+                        }
+
+                        FileCacheEntryContent::File => {
+                            let file = File::open(&path_to_try.content_path()).await.unwrap();
+                            let body = AsyncReadBody::new(file);
+                            (StatusCode::OK, headers, body).into_response()
+                        }
+                    }
                 };
             }
 
             ServeFileResponse::NotModified { headers } => {
-                return (StatusCode::NOT_MODIFIED, headers, vec![]);
+                return (StatusCode::NOT_MODIFIED, headers).into_response();
             }
 
             ServeFileResponse::NotFound => {
@@ -218,5 +230,5 @@ async fn root(
         }
     }
 
-    (StatusCode::NOT_FOUND, HeaderMap::new(), vec![])
+    StatusCode::NOT_FOUND.into_response()
 }

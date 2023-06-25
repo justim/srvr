@@ -14,6 +14,7 @@ exclude = ["Dockerfile"]
 [dependencies]
 anyhow = "1.0.71"
 axum = { version = "0.6.18", features = ["headers", "http2"] }
+axum-extra = { version = "0.7.4", features = ["async-read-body"] }
 clap = { version = "4.3.5", features = ["derive"] }
 httpdate = "1.0.2"
 humantime = "2.1.0"
