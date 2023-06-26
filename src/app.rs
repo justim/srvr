@@ -1,16 +1,15 @@
 use std::path::Component;
 use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use axum::body::Body;
 use axum::extract::State;
+use axum::headers::IfModifiedSince;
 use axum::http::header::CACHE_CONTROL;
 use axum::http::header::CONTENT_ENCODING;
 use axum::http::header::CONTENT_LENGTH;
 use axum::http::header::CONTENT_TYPE;
-use axum::http::header::IF_MODIFIED_SINCE;
 use axum::http::header::LAST_MODIFIED;
 use axum::http::HeaderMap;
 use axum::http::HeaderValue;
@@ -21,6 +20,7 @@ use axum::http::Uri;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Router;
+use axum::TypedHeader;
 use axum_extra::body::AsyncReadBody;
 use httpdate::HttpDate;
 use humantime::format_duration;
@@ -89,7 +89,7 @@ enum ServeFileResponse {
 async fn serve_file(
     file_cache: &FileCache,
     path_to_try: &PathToTry,
-    if_modified_since: &Option<HttpDate>,
+    if_modified_since: &Option<TypedHeader<IfModifiedSince>>,
 ) -> ServeFileResponse {
     let content_type_path = path_to_try.path();
     let content_path = path_to_try.content_path();
@@ -141,7 +141,7 @@ async fn serve_file(
             );
 
             if let Some(if_modified_since) = if_modified_since {
-                if last_modified <= *if_modified_since {
+                if !if_modified_since.is_modified(last_modified.into()) {
                     tracing::trace!("Client has latest version");
                     headers.insert(CONTENT_LENGTH, 0.into());
                     return ServeFileResponse::NotModified { headers };
@@ -161,7 +161,8 @@ async fn root(
     state: State<ServerState>,
     method: Method,
     uri: Uri,
-    incoming_headers: HeaderMap,
+    client_encoding_support: ClientEncodingSupport,
+    if_modified_since: Option<TypedHeader<IfModifiedSince>>,
 ) -> Response {
     let path = uri.path().trim_start_matches('/');
     let path = percent_decode_str(path).decode_utf8().ok().unwrap();
@@ -175,13 +176,6 @@ async fn root(
     if !is_valid {
         return StatusCode::BAD_REQUEST.into_response();
     }
-
-    let client_encoding_support = ClientEncodingSupport::from_header_map(&incoming_headers);
-
-    let if_modified_since = incoming_headers
-        .get(IF_MODIFIED_SINCE)
-        .and_then(|if_modified_since| if_modified_since.to_str().ok())
-        .and_then(|if_modified_since| HttpDate::from_str(if_modified_since).ok());
 
     let paths_to_try =
         collect_paths_to_try(&client_encoding_support, &state.config.base_dir, &uri, path);

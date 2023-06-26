@@ -1,4 +1,9 @@
+use std::convert::Infallible;
+
+use axum::async_trait;
+use axum::extract::FromRequestParts;
 use axum::http::header::ACCEPT_ENCODING;
+use axum::http::request::Parts;
 use axum::http::HeaderMap;
 use axum::http::HeaderValue;
 
@@ -33,7 +38,7 @@ pub struct ClientEncodingSupport {
 }
 
 impl ClientEncodingSupport {
-    pub fn from_header_map(incoming_headers: &HeaderMap) -> Self {
+    fn from_header_map(incoming_headers: &HeaderMap) -> Self {
         let mut support = Self::default();
 
         let encodings = incoming_headers
@@ -63,5 +68,17 @@ impl ClientEncodingSupport {
             (false, true) => &[Encoding::Gzip],
             (false, false) => &[],
         }
+    }
+}
+
+#[async_trait]
+impl<S> FromRequestParts<S> for ClientEncodingSupport
+where
+    S: Send + Sync,
+{
+    type Rejection = Infallible;
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        Ok(ClientEncodingSupport::from_header_map(&parts.headers))
     }
 }
