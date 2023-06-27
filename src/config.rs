@@ -1,10 +1,30 @@
 use std::fs::metadata;
+use std::io;
 use std::path::PathBuf;
+use std::process::exit;
 
+use clap::Args;
+use clap::Command;
+use clap::CommandFactory;
 use clap::Parser;
+use clap_complete::generate;
+use clap_complete::Generator;
+use clap_complete::Shell;
+
+#[derive(Parser, Clone, Debug)]
+#[command(author, version, about, long_about = None)]
+struct CliConfig {
+    /// The actual config for srvr
+    #[command(flatten)]
+    config: Config,
+
+    /// Generate shell completions
+    #[arg(long, value_enum)]
+    generate_shell_completions: Option<Shell>,
+}
 
 /// Serve files in a directory on a HTTP endpoint
-#[derive(Parser, Clone, Debug)]
+#[derive(Args, Clone, Debug)]
 pub struct Config {
     /// The directory to serve to the world
     #[arg(default_value = ".")]
@@ -19,10 +39,23 @@ pub struct Config {
     pub port: Option<u16>,
 }
 
+/// Print the completions for srvr and `exit(0)`
+fn print_completions<G: Generator>(gen: G, cmd: &mut Command) -> ! {
+    generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
+    exit(0);
+}
+
 impl Config {
     /// Create a config from the environment
     pub fn from_env() -> anyhow::Result<Self> {
-        let config = Config::parse();
+        let cli_config = CliConfig::parse();
+
+        if let Some(generate_shell_completions) = cli_config.generate_shell_completions {
+            let mut cli_command = CliConfig::command();
+            print_completions(generate_shell_completions, &mut cli_command);
+        }
+
+        let config = cli_config.config;
 
         // check for the existence of base dir
         metadata(&config.base_dir)?;
