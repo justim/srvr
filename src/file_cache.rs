@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::Metadata;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use axum::http::HeaderValue;
 use httpdate::HttpDate;
@@ -44,7 +45,7 @@ impl FileCache {
         let mut files = self.files.write().await;
         files.insert(path.clone(), entry);
 
-        files.get(&path).unwrap().clone()
+        files.get(&path).expect("Just inserted entry").clone()
     }
 
     pub async fn read_file(
@@ -58,7 +59,10 @@ impl FileCache {
                 let mime = mime_guess::from_path(content_type_path)
                     .first_raw()
                     .map_or_else(
-                        || HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref()).unwrap(),
+                        || {
+                            HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref())
+                                .expect("A valid application/octet-stream header value")
+                        },
                         HeaderValue::from_static,
                     );
 
@@ -70,7 +74,12 @@ impl FileCache {
                     tracing::trace!("Using cache to serve file");
 
                     let mut bytes = Vec::with_capacity(meta.len() as usize);
-                    file.read_to_end(&mut bytes).await.unwrap();
+
+                    if let Err(err) = file.read_to_end(&mut bytes).await {
+                        tracing::warn!("Could not read file into cache ({content_path:?}): {err}");
+                        return FileCacheEntry::NotFound;
+                    }
+
                     FileCacheEntryContent::Cached(Arc::new(bytes))
                 };
 
@@ -78,7 +87,9 @@ impl FileCache {
                     content,
                     content_type: mime,
                     content_length: meta.len(),
-                    last_modified: HttpDate::from(meta.modified().unwrap()),
+                    last_modified: HttpDate::from(
+                        meta.modified().unwrap_or_else(|_| SystemTime::now()),
+                    ),
                 };
 
                 self.set(content_path, entry).await

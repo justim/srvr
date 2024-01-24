@@ -2,6 +2,7 @@ use std::path::Component;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
+use std::time::SystemTime;
 
 use axum::extract::State;
 use axum::http::header::CACHE_CONTROL;
@@ -107,7 +108,11 @@ async fn serve_file(
     let entry = if let Some(entry) = file_cache.get(&content_path).await {
         tracing::trace!("Cache hit, serving from cache");
 
-        let file_last_modified = HttpDate::from(meta.modified().unwrap());
+        let file_last_modified = HttpDate::from(meta.modified().unwrap_or_else(|_| {
+            // there is no way to known when the file was modified, just assume it is
+            // fresh -- not ideal, but better than a crash :)
+            SystemTime::now()
+        }));
 
         match entry {
             FileCacheEntry::Found { last_modified, .. } => {
@@ -141,10 +146,16 @@ async fn serve_file(
         } => {
             let mut headers = HeaderMap::new();
             headers.insert(CONTENT_TYPE, content_type);
-            headers.insert(
-                LAST_MODIFIED,
-                HeaderValue::from_str(&last_modified.to_string()).unwrap(),
-            );
+
+            match HeaderValue::from_str(&last_modified.to_string()) {
+                Ok(last_modified) => {
+                    headers.insert(LAST_MODIFIED, last_modified);
+                }
+
+                Err(err) => {
+                    tracing::warn!("Could not set last modified header: {err}");
+                }
+            };
 
             if let Some(if_modified_since) = if_modified_since {
                 if !if_modified_since.is_modified(last_modified.into()) {
@@ -171,7 +182,12 @@ async fn root(
     if_modified_since: Option<TypedHeader<IfModifiedSince>>,
 ) -> Response {
     let path = uri.path().trim_start_matches('/');
-    let path = percent_decode_str(path).decode_utf8().ok().unwrap();
+
+    let Ok(path) = percent_decode_str(path).decode_utf8() else {
+        // we received something funky, just bail
+        return StatusCode::NOT_FOUND.into_response();
+    };
+
     let path = PathBuf::from(&*path);
 
     // quick check to see if there are any weird path traversal tricks
@@ -212,9 +228,17 @@ async fn root(
                         }
 
                         FileCacheEntryContent::File => {
-                            let file = File::open(&path_to_try.content_path()).await.unwrap();
-                            let body = AsyncReadBody::new(file);
-                            (StatusCode::OK, headers, body).into_response()
+                            match File::open(&path_to_try.content_path()).await {
+                                Ok(file) => {
+                                    let body = AsyncReadBody::new(file);
+                                    (StatusCode::OK, headers, body).into_response()
+                                }
+
+                                Err(err) => {
+                                    tracing::warn!("File is no longer available: {err}");
+                                    StatusCode::NOT_FOUND.into_response()
+                                }
+                            }
                         }
                     }
                 };
