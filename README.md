@@ -50,6 +50,19 @@ docker build --tag srvr .
 docker run --rm --interactive --tty --publish 12234:80 --volume ./:/var/srvr srvr
 ```
 
+### Completions
+
+Generating completions can be done by running the binary with the
+`--generate-shell-completions <shell>` option. There is support for `bash`,
+`elvish`, `fish`, `powershell` and `zsh`.
+
+```sh
+srvr --generate-shell-completions fish
+```
+
+The output of the command should be saved in the appropriate location for your
+shell.
+
 #### License
 
 <sup>

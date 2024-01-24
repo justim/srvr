@@ -20,7 +20,7 @@ struct CliConfig {
     config: Config,
 
     /// Generate shell completions
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, hide = true)]
     generate_shell_completions: Option<Shell>,
 }
 
