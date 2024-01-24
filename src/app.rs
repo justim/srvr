@@ -3,9 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use axum::body::Body;
 use axum::extract::State;
-use axum::headers::IfModifiedSince;
 use axum::http::header::CACHE_CONTROL;
 use axum::http::header::CONTENT_ENCODING;
 use axum::http::header::CONTENT_LENGTH;
@@ -20,8 +18,9 @@ use axum::http::Uri;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use axum::Router;
-use axum::TypedHeader;
 use axum_extra::body::AsyncReadBody;
+use axum_extra::headers::IfModifiedSince;
+use axum_extra::TypedHeader;
 use httpdate::HttpDate;
 use humantime::format_duration;
 use percent_encoding::percent_decode_str;
@@ -63,7 +62,7 @@ pub fn app(state: ServerState) -> Router {
                     latency = tracing::field::Empty,
                 )
             })
-            .on_request(|_request: &Request<Body>, _span: &Span| {
+            .on_request(|_request: &Request<_>, _span: &Span| {
                 tracing::debug!("Incoming request");
             })
             .on_response(|response: &Response, latency: Duration, span: &Span| {

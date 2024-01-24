@@ -5,7 +5,7 @@
 
 use std::process::exit;
 
-use axum::Server;
+use tokio::net::TcpListener;
 
 use crate::app::app;
 use crate::app::ServerState;
@@ -41,6 +41,14 @@ async fn main() -> anyhow::Result<()> {
         }
     };
 
+    let listener = match TcpListener::bind(address).await {
+        Ok(listener) => listener,
+        Err(err) => {
+            tracing::error!("Could not listen on address {address}: {err}");
+            exit(1);
+        }
+    };
+
     tracing::info!("                                   ");
     tracing::info!(" ███████╗██████╗ ██╗   ██╗██████╗  ");
     tracing::info!(" ██╔════╝██╔══██╗██║   ██║██╔══██╗ ");
@@ -53,9 +61,7 @@ async fn main() -> anyhow::Result<()> {
 
     let state = ServerState::from_config(config);
 
-    Server::bind(&address)
-        .tcp_nodelay(true)
-        .serve(app(state).into_make_service())
+    axum::serve(listener, app(state).into_make_service())
         .with_graceful_shutdown(graceful_shutdown())
         .await?;
 
