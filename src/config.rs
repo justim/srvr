@@ -7,6 +7,7 @@ use clap::Args;
 use clap::Command;
 use clap::CommandFactory;
 use clap::Parser;
+use clap::ValueHint;
 use clap_complete::generate;
 use clap_complete::Generator;
 use clap_complete::Shell;
@@ -27,7 +28,7 @@ struct CliConfig {
 #[derive(Args, Clone, Debug)]
 pub struct Config {
     /// The directory to serve to the world
-    #[arg(default_value = ".")]
+    #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     pub base_dir: PathBuf,
 
     /// The address to run srvr on, defaults to 127.0.0.1:12234
