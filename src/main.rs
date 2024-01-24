@@ -28,7 +28,7 @@ async fn main() -> anyhow::Result<()> {
     let config = match Config::from_env() {
         Ok(config) => config,
         Err(err) => {
-            tracing::error!("Could not open base dir: {err}");
+            tracing::error!("Could not handle arguments: {err}");
             exit(1);
         }
     };

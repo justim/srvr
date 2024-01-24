@@ -12,6 +12,15 @@ use clap_complete::generate;
 use clap_complete::Generator;
 use clap_complete::Shell;
 
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("Could not open base dir \"{0}\": {1}")]
+    InvalidBaseDir(PathBuf, std::io::Error),
+
+    #[error("Could not open fallback path \"{0}\": {1}")]
+    InvalidFallbackPath(PathBuf, std::io::Error),
+}
+
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
 struct CliConfig {
@@ -63,11 +72,13 @@ impl Config {
         let config = cli_config.config;
 
         // check for the existence of base dir
-        metadata(&config.base_dir)?;
+        metadata(&config.base_dir)
+            .map_err(|err| ConfigError::InvalidBaseDir(config.base_dir.clone(), err))?;
 
         if let Some(fallback_path) = &config.fallback_path {
             // check for the existence of fallback path
-            metadata(fallback_path)?;
+            metadata(fallback_path)
+                .map_err(|err| ConfigError::InvalidFallbackPath(fallback_path.clone(), err))?;
         }
 
         Ok(config)
