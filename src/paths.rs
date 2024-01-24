@@ -49,6 +49,7 @@ impl PathToTry {
 pub fn collect_paths_to_try(
     client_encoding_support: &ClientEncodingSupport,
     base_dir: &Path,
+    fallback_path: &Path,
     uri: &Uri,
     initial_path: PathBuf,
 ) -> Vec<PathToTry> {
@@ -73,18 +74,16 @@ pub fn collect_paths_to_try(
         });
     }
 
-    let fallback_path = base_dir.join("index.html");
-
     for encoding in client_encoding_support.supported_encodings() {
         paths_to_try.push(PathToTry {
-            path: fallback_path.clone(),
+            path: fallback_path.to_path_buf(),
             encoding: Some(*encoding),
             cache_control: Some("no-cache"),
         });
     }
 
     paths_to_try.push(PathToTry {
-        path: fallback_path,
+        path: fallback_path.to_path_buf(),
         encoding: None,
         cache_control: None,
     });

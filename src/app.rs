@@ -39,16 +39,25 @@ use crate::file_cache::FileCacheEntryContent;
 use crate::paths::collect_paths_to_try;
 use crate::paths::PathToTry;
 
+const DEFAULT_FALLBACK_PATH: &str = "index.html";
+
 #[derive(Clone)]
 pub struct ServerState {
     config: Config,
+    fallback_path: PathBuf,
     file_cache: Arc<FileCache>,
 }
 
 impl ServerState {
     pub fn from_config(config: Config) -> Self {
+        let fallback_path = config.fallback_path.as_ref().map_or_else(
+            || config.base_dir.join(DEFAULT_FALLBACK_PATH),
+            PathBuf::from,
+        );
+
         Self {
             config,
+            fallback_path,
             file_cache: Arc::default(),
         }
     }
@@ -199,8 +208,13 @@ async fn root(
         return StatusCode::BAD_REQUEST.into_response();
     }
 
-    let paths_to_try =
-        collect_paths_to_try(&client_encoding_support, &state.config.base_dir, &uri, path);
+    let paths_to_try = collect_paths_to_try(
+        &client_encoding_support,
+        &state.config.base_dir,
+        &state.fallback_path,
+        &uri,
+        path,
+    );
 
     for path_to_try in paths_to_try {
         tracing::trace!("Trying path: {path_to_try:?}");

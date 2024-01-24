@@ -31,6 +31,10 @@ pub struct Config {
     #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     pub base_dir: PathBuf,
 
+    /// The file to use as the fallback file, defaults to <base_dir>/index.html
+    #[arg(long, short)]
+    pub fallback_path: Option<PathBuf>,
+
     /// The address to run srvr on, defaults to 127.0.0.1:12234
     #[arg(long, short)]
     pub address: Option<String>,
@@ -60,6 +64,11 @@ impl Config {
 
         // check for the existence of base dir
         metadata(&config.base_dir)?;
+
+        if let Some(fallback_path) = &config.fallback_path {
+            // check for the existence of fallback path
+            metadata(fallback_path)?;
+        }
 
         Ok(config)
     }
