@@ -73,7 +73,10 @@ impl FileCache {
                 } else {
                     tracing::trace!("Using cache to serve file");
 
-                    let mut bytes = Vec::with_capacity(meta.len() as usize);
+                    // SAFEFY: We check that the file size is below the threshold
+                    let mut bytes = Vec::with_capacity(
+                        usize::try_from(meta.len()).expect("Valid u64 -> usize conversion"),
+                    );
 
                     if let Err(err) = file.read_to_end(&mut bytes).await {
                         tracing::warn!("Could not read file into cache ({content_path:?}): {err}");
