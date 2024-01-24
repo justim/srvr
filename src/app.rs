@@ -25,6 +25,8 @@ use httpdate::HttpDate;
 use humantime::format_duration;
 use percent_encoding::percent_decode_str;
 use tokio::fs::File;
+use tower_http::timeout::RequestBodyTimeoutLayer;
+use tower_http::timeout::ResponseBodyTimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tracing::Span;
 
@@ -52,26 +54,31 @@ impl ServerState {
 }
 
 pub fn app(state: ServerState) -> Router {
-    Router::new().fallback(root).with_state(state).layer(
-        TraceLayer::new_for_http()
-            .make_span_with(|request: &Request<_>| {
-                tracing::info_span!(
-                    "req",
-                    status = tracing::field::Empty,
-                    path = &tracing::field::display(request.uri()),
-                    latency = tracing::field::Empty,
-                )
-            })
-            .on_request(|_request: &Request<_>, _span: &Span| {
-                tracing::debug!("Incoming request");
-            })
-            .on_response(|response: &Response, latency: Duration, span: &Span| {
-                span.record("status", &tracing::field::display(response.status()));
-                span.record("latency", format_duration(latency).to_string());
+    Router::new()
+        .fallback(root)
+        .with_state(state)
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|request: &Request<_>| {
+                    tracing::info_span!(
+                        "req",
+                        status = tracing::field::Empty,
+                        path = &tracing::field::display(request.uri()),
+                        latency = tracing::field::Empty,
+                    )
+                })
+                .on_request(|_request: &Request<_>, _span: &Span| {
+                    tracing::debug!("Incoming request");
+                })
+                .on_response(|response: &Response, latency: Duration, span: &Span| {
+                    span.record("status", &tracing::field::display(response.status()));
+                    span.record("latency", format_duration(latency).to_string());
 
-                tracing::info!("Finished request");
-            }),
-    )
+                    tracing::info!("Finished request");
+                }),
+        )
+        .layer(RequestBodyTimeoutLayer::new(Duration::from_secs(5)))
+        .layer(ResponseBodyTimeoutLayer::new(Duration::from_secs(5)))
 }
 
 enum ServeFileResponse {
