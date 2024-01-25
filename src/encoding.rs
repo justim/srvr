@@ -7,6 +7,22 @@ use axum::http::request::Parts;
 use axum::http::HeaderMap;
 use axum::http::HeaderValue;
 
+/// Brotli encoding in `accept-encoding` header
+///
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding>
+const ENCODING_BR: &str = "br";
+
+/// Extension for Brotli encoded files
+const ENCODING_BR_EXTENSION: &str = ".br";
+
+/// Gzip encoding in `accept-encoding` header
+///
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding>
+const ENCODING_GZIP: &str = "gzip";
+
+/// Extension for gzip encoded files
+const ENCODING_GZIP_EXTENSION: &str = ".gz";
+
 #[derive(Clone, Copy, Debug)]
 pub enum Encoding {
     Brotli,
@@ -17,16 +33,16 @@ impl Encoding {
     #[inline]
     pub const fn to_header_value(self) -> HeaderValue {
         match self {
-            Encoding::Brotli => HeaderValue::from_static("br"),
-            Encoding::Gzip => HeaderValue::from_static("gzip"),
+            Encoding::Brotli => HeaderValue::from_static(ENCODING_BR),
+            Encoding::Gzip => HeaderValue::from_static(ENCODING_GZIP),
         }
     }
 
     #[inline]
     pub const fn get_extension(self) -> &'static str {
         match self {
-            Encoding::Brotli => ".br",
-            Encoding::Gzip => ".gz",
+            Encoding::Brotli => ENCODING_BR_EXTENSION,
+            Encoding::Gzip => ENCODING_GZIP_EXTENSION,
         }
     }
 }
@@ -46,8 +62,8 @@ impl ClientEncodingSupport {
             .and_then(|encoding| encoding.to_str().ok())
             .map(|encoding| encoding.split(',').map(str::trim).collect::<Vec<&str>>());
 
-        support.has_brotli = Self::check_support(&encodings, "br");
-        support.has_gzip = Self::check_support(&encodings, "gzip");
+        support.has_brotli = Self::check_support(&encodings, ENCODING_BR);
+        support.has_gzip = Self::check_support(&encodings, ENCODING_GZIP);
 
         support
     }

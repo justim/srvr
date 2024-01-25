@@ -8,6 +8,9 @@ use axum::http::Uri;
 use crate::encoding::ClientEncodingSupport;
 use crate::encoding::Encoding;
 
+/// Cache control header value for no-cache
+const CACHE_CONTROL_NO_CACHE: &str = "no-cache";
+
 fn append_to_path(path: impl Into<OsString>, suffix: impl AsRef<OsStr>) -> PathBuf {
     let mut path = path.into();
     path.push(suffix);
@@ -78,7 +81,7 @@ pub fn collect_paths_to_try(
         paths_to_try.push(PathToTry {
             path: fallback_path.to_path_buf(),
             encoding: Some(*encoding),
-            cache_control: Some("no-cache"),
+            cache_control: Some(CACHE_CONTROL_NO_CACHE),
         });
     }
 
