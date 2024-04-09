@@ -43,9 +43,9 @@ impl FileCache {
 
     async fn set(&self, path: PathBuf, entry: FileCacheEntry) -> FileCacheEntry {
         let mut files = self.files.write().await;
-        files.insert(path.clone(), entry);
+        files.insert(path, entry.clone());
 
-        files.get(&path).expect("Just inserted entry").clone()
+        entry
     }
 
     pub async fn read_file(
