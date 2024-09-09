@@ -10,6 +10,7 @@ use axum::http::header::CONTENT_ENCODING;
 use axum::http::header::CONTENT_LENGTH;
 use axum::http::header::CONTENT_TYPE;
 use axum::http::header::LAST_MODIFIED;
+use axum::http::header::VARY;
 use axum::http::HeaderMap;
 use axum::http::HeaderValue;
 use axum::http::Method;
@@ -38,6 +39,11 @@ use crate::file_cache::FileCacheEntry;
 use crate::file_cache::FileCacheEntryContent;
 use crate::paths::collect_paths_to_try;
 use crate::paths::PathToTry;
+
+/// The value of the `Vary` header for `Accept-Encoding`
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary>
+// Using `HeaderName::into` is not possible, as it is not `const fn`
+const VARY_ACCEPT_ENCODING: HeaderValue = HeaderValue::from_static("accept-encoding");
 
 const DEFAULT_FALLBACK_PATH: &str = "index.html";
 
@@ -155,6 +161,7 @@ async fn serve_file(
         } => {
             let mut headers = HeaderMap::new();
             headers.insert(CONTENT_TYPE, content_type);
+            headers.insert(VARY, VARY_ACCEPT_ENCODING);
 
             match HeaderValue::from_str(&last_modified.to_string()) {
                 Ok(last_modified) => {
