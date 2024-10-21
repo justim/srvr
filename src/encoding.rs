@@ -150,10 +150,11 @@ mod tests {
 
     #[test]
     fn test_supported_encodings() {
-        let mut support = ClientEncodingSupport::default();
+        let mut support = ClientEncodingSupport {
+            has_gzip: true,
+            has_brotli: true,
+        };
 
-        support.has_gzip = true;
-        support.has_brotli = true;
         assert_eq!(
             support.supported_encodings(),
             &[Encoding::Brotli, Encoding::Gzip]
@@ -213,7 +214,7 @@ mod tests {
         assert!(!support.has_gzip);
         assert!(!support.has_brotli);
 
-        assert!(support.supported_encodings().len() == 0);
+        assert!(support.supported_encodings().is_empty());
     }
 
     #[test]
@@ -226,6 +227,6 @@ mod tests {
         assert!(!support.has_gzip);
         assert!(!support.has_brotli);
 
-        assert!(support.supported_encodings().len() == 0);
+        assert!(support.supported_encodings().is_empty());
     }
 }

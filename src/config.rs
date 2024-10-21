@@ -40,7 +40,7 @@ pub struct Config {
     #[arg(default_value = ".", value_hint = ValueHint::DirPath)]
     pub base_dir: PathBuf,
 
-    /// The file to use as the fallback file, defaults to <base_dir>/index.html
+    /// The file to use as the fallback file, defaults to `<base_dir>/index.html`
     #[arg(long, short)]
     pub fallback_path: Option<PathBuf>,
 

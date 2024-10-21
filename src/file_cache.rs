@@ -38,7 +38,7 @@ pub struct FileCache {
 
 impl FileCache {
     pub async fn get(&self, path: &PathBuf) -> Option<FileCacheEntry> {
-        self.files.read().await.get(path).map(Clone::clone)
+        self.files.read().await.get(path).cloned()
     }
 
     async fn set(&self, path: PathBuf, entry: FileCacheEntry) -> FileCacheEntry {

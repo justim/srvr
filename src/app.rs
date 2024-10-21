@@ -87,7 +87,7 @@ pub fn app(state: ServerState) -> Router {
                     tracing::debug!("Incoming request");
                 })
                 .on_response(|response: &Response, latency: Duration, span: &Span| {
-                    span.record("status", &tracing::field::display(response.status()));
+                    span.record("status", tracing::field::display(response.status()));
                     span.record("latency", format_duration(latency).to_string());
 
                     tracing::info!("Finished request");
