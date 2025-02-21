@@ -2,7 +2,6 @@
 
 use std::convert::Infallible;
 
-use axum::async_trait;
 use axum::extract::FromRequestParts;
 use axum::http::header::ACCEPT_ENCODING;
 use axum::http::request::Parts;
@@ -114,7 +113,6 @@ impl ClientEncodingSupport {
     }
 }
 
-#[async_trait]
 impl<S> FromRequestParts<S> for ClientEncodingSupport
 where
     S: Send + Sync,
