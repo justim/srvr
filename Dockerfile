@@ -3,7 +3,7 @@
 ##
 
 # Base builder image
-FROM rust:1.70-slim as builder
+FROM rust:1.80-slim AS builder
 
 # Very nice
 WORKDIR /usr/src/srvr
@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/usr/src/srvr/target \
     objcopy --compress-debug-sections target/release/srvr ./srvr
 
 # Lean, mean, image machine
-FROM gcr.io/distroless/cc as runtime
+FROM gcr.io/distroless/cc AS runtime
 
 # Just the srvr binary
 COPY --from=builder /usr/src/srvr/srvr /

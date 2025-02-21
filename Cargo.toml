@@ -8,7 +8,7 @@ authors = ["Tim <me@justim.net>"]
 repository = "https://github.com/justim/srvr"
 homepage = "https://github.com/justim/srvr"
 documentation = "https://github.com/justim/srvr"
-rust-version = "1.70"
+rust-version = "1.80"
 exclude = ["Dockerfile"]
 
 [dependencies]
