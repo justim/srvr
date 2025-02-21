@@ -5,6 +5,7 @@ use std::time::Duration;
 use std::time::SystemTime;
 
 use axum::extract::State;
+use axum::http::header::ACCEPT_RANGES;
 use axum::http::header::CACHE_CONTROL;
 use axum::http::header::CONTENT_ENCODING;
 use axum::http::header::CONTENT_LENGTH;
@@ -22,6 +23,7 @@ use axum::response::Response;
 use axum::Router;
 use axum_extra::body::AsyncReadBody;
 use axum_extra::headers::IfModifiedSince;
+use axum_extra::headers::Range;
 use axum_extra::TypedHeader;
 use httpdate::HttpDate;
 use humantime::format_duration;
@@ -37,6 +39,8 @@ use crate::encoding::ClientEncodingSupport;
 use crate::file_cache::FileCache;
 use crate::file_cache::FileCacheEntry;
 use crate::file_cache::FileCacheEntryContent;
+use crate::partial::serve_partial_cached_response;
+use crate::partial::serve_partial_file_response;
 use crate::paths::collect_paths_to_try;
 use crate::paths::PathToTry;
 
@@ -44,6 +48,8 @@ use crate::paths::PathToTry;
 /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Vary>
 // Using `HeaderName::into` is not possible, as it is not `const fn`
 const VARY_ACCEPT_ENCODING: HeaderValue = HeaderValue::from_static("accept-encoding");
+
+const ACCEPT_RANGES_BYTES: HeaderValue = HeaderValue::from_static("bytes");
 
 const DEFAULT_FALLBACK_PATH: &str = "index.html";
 
@@ -101,6 +107,7 @@ enum ServeFileResponse {
     Found {
         headers: HeaderMap,
         content: FileCacheEntryContent,
+        content_length: u64,
     },
     NotModified {
         headers: HeaderMap,
@@ -183,7 +190,11 @@ async fn serve_file(
 
             headers.insert(CONTENT_LENGTH, content_length.into());
 
-            ServeFileResponse::Found { headers, content }
+            ServeFileResponse::Found {
+                headers,
+                content,
+                content_length,
+            }
         }
 
         FileCacheEntry::NotFound => ServeFileResponse::NotFound,
@@ -196,6 +207,7 @@ async fn root(
     uri: Uri,
     client_encoding_support: ClientEncodingSupport,
     if_modified_since: Option<TypedHeader<IfModifiedSince>>,
+    range: Option<TypedHeader<Range>>,
 ) -> Response {
     let path = uri.path().trim_start_matches('/');
 
@@ -230,6 +242,7 @@ async fn root(
             ServeFileResponse::Found {
                 mut headers,
                 content,
+                content_length,
             } => {
                 if let Some(encoding) = path_to_try.encoding() {
                     headers.append(CONTENT_ENCODING, encoding.to_header_value());
@@ -239,20 +252,42 @@ async fn root(
                     headers.append(CACHE_CONTROL, HeaderValue::from_static(cache_control));
                 }
 
+                headers.append(ACCEPT_RANGES, ACCEPT_RANGES_BYTES);
+
                 return if method == Method::HEAD {
                     // HEAD-method expects no content
                     (StatusCode::OK, headers).into_response()
                 } else {
                     match content {
                         FileCacheEntryContent::Cached(content) => {
-                            (StatusCode::OK, headers, content.to_vec()).into_response()
+                            if let Some(range) = range {
+                                serve_partial_cached_response(
+                                    headers,
+                                    content.as_ref(),
+                                    content_length,
+                                    &range,
+                                )
+                                .await
+                            } else {
+                                (StatusCode::OK, headers, content.to_vec()).into_response()
+                            }
                         }
 
                         FileCacheEntryContent::File => {
                             match File::open(&path_to_try.content_path()).await {
                                 Ok(file) => {
-                                    let body = AsyncReadBody::new(file);
-                                    (StatusCode::OK, headers, body).into_response()
+                                    if let Some(range) = range {
+                                        serve_partial_file_response(
+                                            headers,
+                                            file,
+                                            content_length,
+                                            &range,
+                                        )
+                                        .await
+                                    } else {
+                                        let body = AsyncReadBody::new(file);
+                                        (StatusCode::OK, headers, body).into_response()
+                                    }
                                 }
 
                                 Err(err) => {

@@ -18,6 +18,7 @@ mod app;
 mod config;
 mod encoding;
 mod file_cache;
+mod partial;
 mod paths;
 mod utils;
 
