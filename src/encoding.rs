@@ -24,14 +24,25 @@ const ENCODING_GZIP: &str = "gzip";
 /// Extension for gzip encoded files
 const ENCODING_GZIP_EXTENSION: &str = ".gz";
 
+/// Zstandard encoding in `accept-encoding` header
+///
+/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding>
+const ENCODING_ZSTD: &str = "zstd";
+
+/// Extension for zstd encoded files
+const ENCODING_ZSTD_EXTENSION: &str = ".zst";
+
 /// Supported encodings
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Encoding {
-    /// Brotili compression
+    /// Brotili compression (br)
     Brotli,
 
-    /// Gzip compression
+    /// Gzip compression (gzip)
     Gzip,
+
+    /// Zstandard compression (zstd)
+    Zstandard,
 }
 
 impl Encoding {
@@ -41,6 +52,7 @@ impl Encoding {
         match self {
             Encoding::Brotli => HeaderValue::from_static(ENCODING_BR),
             Encoding::Gzip => HeaderValue::from_static(ENCODING_GZIP),
+            Encoding::Zstandard => HeaderValue::from_static(ENCODING_ZSTD),
         }
     }
 
@@ -50,6 +62,7 @@ impl Encoding {
         match self {
             Encoding::Brotli => ENCODING_BR_EXTENSION,
             Encoding::Gzip => ENCODING_GZIP_EXTENSION,
+            Encoding::Zstandard => ENCODING_ZSTD_EXTENSION,
         }
     }
 }
@@ -57,11 +70,14 @@ impl Encoding {
 /// Client encoding support
 #[derive(Default)]
 pub struct ClientEncodingSupport {
-    /// Support for brotli encoding
+    /// Support for Brotli encoding
     has_brotli: bool,
 
-    /// Support for gzip encoding
+    /// Support for Gzip encoding
     has_gzip: bool,
+
+    /// Support for Zstandard encoding
+    has_zstandard: bool,
 }
 
 impl ClientEncodingSupport {
@@ -80,6 +96,7 @@ impl ClientEncodingSupport {
         if let Some(encodings) = encodings {
             support.has_brotli = Self::check_support(&encodings, ENCODING_BR);
             support.has_gzip = Self::check_support(&encodings, ENCODING_GZIP);
+            support.has_zstandard = Self::check_support(&encodings, ENCODING_ZSTD);
         }
 
         support
@@ -102,13 +119,27 @@ impl ClientEncodingSupport {
     }
 
     /// Get list of supported encodings
+    ///
+    /// List is in order of quality, highest quality first:
+    ///
+    /// - Brotli
+    /// - Zstandard
+    /// - Gzip
+    ///
+    /// Brotli has generally the best compression ratio, but takes the longest to compress.
+    /// Our use case is loading pre-compressed files, so we want to serve the most compressed,
+    /// regardless of how long it took to compress.
     #[inline]
     pub const fn supported_encodings(&self) -> &[Encoding] {
-        match (self.has_brotli, self.has_gzip) {
-            (true, true) => &[Encoding::Brotli, Encoding::Gzip],
-            (true, false) => &[Encoding::Brotli],
-            (false, true) => &[Encoding::Gzip],
-            (false, false) => &[],
+        match (self.has_brotli, self.has_gzip, self.has_zstandard) {
+            (true, true, true) => &[Encoding::Brotli, Encoding::Zstandard, Encoding::Gzip],
+            (true, true, false) => &[Encoding::Brotli, Encoding::Gzip],
+            (true, false, true) => &[Encoding::Brotli, Encoding::Zstandard],
+            (false, true, true) => &[Encoding::Zstandard, Encoding::Gzip],
+            (true, false, false) => &[Encoding::Brotli],
+            (false, false, true) => &[Encoding::Zstandard],
+            (false, true, false) => &[Encoding::Gzip],
+            (false, false, false) => &[],
         }
     }
 }
@@ -151,17 +182,24 @@ mod tests {
         let mut support = ClientEncodingSupport {
             has_gzip: true,
             has_brotli: true,
+            has_zstandard: true,
         };
 
         assert_eq!(
             support.supported_encodings(),
-            &[Encoding::Brotli, Encoding::Gzip]
+            &[Encoding::Brotli, Encoding::Zstandard, Encoding::Gzip],
         );
 
         support.has_gzip = false;
-        assert_eq!(support.supported_encodings(), &[Encoding::Brotli]);
+        assert_eq!(
+            support.supported_encodings(),
+            &[Encoding::Brotli, Encoding::Zstandard]
+        );
 
         support.has_brotli = false;
+        assert_eq!(support.supported_encodings(), &[Encoding::Zstandard]);
+
+        support.has_zstandard = false;
         assert_eq!(support.supported_encodings(), &[]);
 
         support.has_gzip = true;
@@ -177,6 +215,7 @@ mod tests {
 
         assert!(support.has_gzip);
         assert!(support.has_brotli);
+        assert!(!support.has_zstandard);
 
         assert_eq!(
             &[Encoding::Brotli, Encoding::Gzip],
@@ -196,6 +235,7 @@ mod tests {
 
         assert!(support.has_gzip);
         assert!(support.has_brotli);
+        assert!(!support.has_zstandard);
 
         assert_eq!(
             &[Encoding::Brotli, Encoding::Gzip],
