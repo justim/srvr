@@ -2,6 +2,9 @@
 
 use std::net::SocketAddr;
 
+use clap_verbosity_flag::InfoLevel;
+use clap_verbosity_flag::Verbosity;
+
 use crate::Config;
 
 /// Default address srvr binds to
@@ -25,17 +28,11 @@ pub fn env_var_or_else(var_name: &'static str, or_else: fn() -> String) -> Strin
 }
 
 /// Setup tracing based on the environment
-pub fn setup_tracing() {
-    use tracing::metadata::LevelFilter;
+pub fn setup_tracing(verbosity: Verbosity<InfoLevel>) {
     use tracing_subscriber::fmt::SubscriberBuilder;
-    use tracing_subscriber::EnvFilter;
 
     let builder = SubscriberBuilder::default()
-        .with_env_filter(
-            EnvFilter::builder()
-                .with_default_directive(LevelFilter::INFO.into())
-                .from_env_lossy(),
-        )
+        .with_max_level(verbosity)
         .with_target(false);
 
     // Only show log targets in debug builds

@@ -12,7 +12,6 @@ use crate::app::ServerState;
 use crate::config::Config;
 use crate::utils::graceful_shutdown;
 use crate::utils::setup_address;
-use crate::utils::setup_tracing;
 
 mod app;
 mod config;
@@ -24,8 +23,6 @@ mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    setup_tracing();
-
     let config = match Config::from_env() {
         Ok(config) => config,
         Err(err) => {

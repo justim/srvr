@@ -16,6 +16,7 @@ anyhow = "1.0"
 axum = { version = "0.8.1", features = ["http2"] }
 axum-extra = { version = "0.10.0", features = ["async-read-body", "typed-header"] }
 clap = { version = "4.5.30", features = ["derive"] }
+clap-verbosity-flag = { version = "3.0.2", default-features = false, features = ["tracing"] }
 clap_complete = "4.5.45"
 httpdate = "1.0.3"
 humantime = "2.1.0"

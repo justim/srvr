@@ -11,6 +11,10 @@ use clap::ValueHint;
 use clap_complete::generate;
 use clap_complete::Generator;
 use clap_complete::Shell;
+use clap_verbosity_flag::InfoLevel;
+use clap_verbosity_flag::Verbosity;
+
+use crate::utils::setup_tracing;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConfigError {
@@ -24,6 +28,12 @@ pub enum ConfigError {
 #[derive(Parser, Clone, Debug)]
 #[command(author, version, about, long_about = None)]
 struct CliConfig {
+    /// The verbosity of the output
+    ///
+    /// With a minimum of `info` level
+    #[command(flatten)]
+    pub verbosity: Verbosity<InfoLevel>,
+
     /// The actual config for srvr
     #[command(flatten)]
     config: Config,
@@ -68,6 +78,8 @@ impl Config {
             let mut cli_command = CliConfig::command();
             print_completions(generate_shell_completions, &mut cli_command);
         }
+
+        setup_tracing(cli_config.verbosity);
 
         let config = cli_config.config;
 
