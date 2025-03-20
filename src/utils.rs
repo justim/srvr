@@ -30,12 +30,19 @@ pub fn setup_tracing() {
     use tracing_subscriber::fmt::SubscriberBuilder;
     use tracing_subscriber::EnvFilter;
 
-    SubscriberBuilder::default()
+    let builder = SubscriberBuilder::default()
         .with_env_filter(
             EnvFilter::builder()
                 .with_default_directive(LevelFilter::INFO.into())
                 .from_env_lossy(),
         )
+        .with_target(false);
+
+    // Only show log targets in debug builds
+    #[cfg(debug_assertions)]
+    let builder = builder.with_target(true);
+
+    builder
         .try_init()
         .expect("Setting default subscriber failed");
 }
