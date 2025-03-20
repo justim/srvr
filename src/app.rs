@@ -118,7 +118,7 @@ enum ServeFileResponse {
 async fn serve_file(
     file_cache: &FileCache,
     path_to_try: &PathToTry,
-    if_modified_since: &Option<TypedHeader<IfModifiedSince>>,
+    if_modified_since: Option<&TypedHeader<IfModifiedSince>>,
 ) -> ServeFileResponse {
     let content_type_path = path_to_try.path();
     let content_path = path_to_try.content_path();
@@ -238,7 +238,7 @@ async fn root(
     for path_to_try in paths_to_try {
         tracing::trace!("Trying path: {path_to_try:?}");
 
-        match serve_file(&state.file_cache, &path_to_try, &if_modified_since).await {
+        match serve_file(&state.file_cache, &path_to_try, if_modified_since.as_ref()).await {
             ServeFileResponse::Found {
                 mut headers,
                 content,
