@@ -64,8 +64,13 @@ pub struct Config {
 }
 
 /// Print the completions for srvr and `exit(0)`
-fn print_completions<G: Generator>(gen: G, cmd: &mut Command) -> ! {
-    generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
+fn print_completions<G: Generator>(generator: G, cmd: &mut Command) -> ! {
+    generate(
+        generator,
+        cmd,
+        cmd.get_name().to_string(),
+        &mut io::stdout(),
+    );
     exit(0);
 }
 

@@ -2,13 +2,13 @@
 name = "srvr"
 version = "0.1.1"
 description = "Simple HTTP file server"
-edition = "2021"
+edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Tim <me@justim.net>"]
 repository = "https://github.com/justim/srvr"
 homepage = "https://github.com/justim/srvr"
 documentation = "https://github.com/justim/srvr"
-rust-version = "1.80"
+rust-version = "1.85"
 exclude = ["Dockerfile"]
 
 [dependencies]

@@ -3,7 +3,7 @@
 ##
 
 # Base builder image
-FROM rust:1.80-slim AS builder
+FROM rust:1.85-slim as builder
 
 # Very nice
 WORKDIR /usr/src/srvr
