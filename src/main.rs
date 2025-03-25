@@ -23,7 +23,7 @@ mod paths;
 mod utils;
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
     let config = match Config::from_env() {
         Ok(config) => config,
         Err(err) => {
@@ -66,9 +66,12 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    axum::serve(listener, app(state).into_make_service())
+    let server = axum::serve(listener, app(state).into_make_service())
         .with_graceful_shutdown(graceful_shutdown())
-        .await?;
+        .await;
 
-    Ok(())
+    if let Err(err) = server {
+        tracing::error!("Server error: {err}");
+        exit(1);
+    }
 }
