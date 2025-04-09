@@ -5,6 +5,7 @@
 
 use std::process::exit;
 
+use axum::serve::ListenerExt as _;
 use tokio::net::TcpListener;
 
 use crate::app::app;
@@ -58,6 +59,12 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Serving {:?} on http://{address}", &config.base_dir);
 
     let state = ServerState::from_config(config);
+
+    let listener = listener.tap_io(|tcp_stream| {
+        if let Err(err) = tcp_stream.set_nodelay(true) {
+            tracing::trace!("Failed to set TCP_NODELAY on incoming connection: {err}");
+        }
+    });
 
     axum::serve(listener, app(state).into_make_service())
         .with_graceful_shutdown(graceful_shutdown())
