@@ -4,6 +4,20 @@
 
 > So simple, even the vowels are not needed
 
+## Version `0.1.2`
+
+### Features
+
+-   Add support for content range responses
+-   Add support for Zstandard encoding
+-   Use command line args to determine verbosity
+-   Add `Vary` header to cache-bust different encodings
+
+### Fixes
+
+-   Upgrade to latest `tokio` (1.44.2) - Fixes GHSA-rr8g-9fpq-6wmg
+-   Increase MSRV to 1.85
+
 ## Version `0.1.1`
 
 ### Fixes
