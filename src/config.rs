@@ -1,3 +1,5 @@
+use core::fmt;
+use std::error::Error;
 use std::fs::metadata;
 use std::io;
 use std::path::PathBuf;
@@ -16,13 +18,37 @@ use clap_verbosity_flag::Verbosity;
 
 use crate::utils::setup_tracing;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum ConfigError {
-    #[error("Could not open base dir \"{0}\": {1}")]
     InvalidBaseDir(PathBuf, std::io::Error),
 
-    #[error("Could not open fallback path \"{0}\": {1}")]
     InvalidFallbackPath(PathBuf, std::io::Error),
+}
+
+impl Error for ConfigError {}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::InvalidBaseDir(path, err) => {
+                    format!(
+                        "Could not open base dir \"{}\": {err}",
+                        path.to_string_lossy()
+                    )
+                }
+
+                Self::InvalidFallbackPath(path, err) => {
+                    format!(
+                        "Could not open fallback path \"{}\": {err}",
+                        path.to_string_lossy()
+                    )
+                }
+            }
+        )
+    }
 }
 
 #[derive(Parser, Clone, Debug)]
