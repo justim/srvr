@@ -12,20 +12,20 @@ rust-version = "1.85"
 exclude = ["Dockerfile"]
 
 [dependencies]
-anyhow = "1.0.97"
-axum = { version = "0.8.3", features = ["http2"] }
-axum-extra = { version = "0.10.1", features = ["async-read-body", "typed-header"] }
-clap = { version = "4.5.35", features = ["derive"] }
+anyhow = { version = "1.0.97", default-features = false }
+axum = { version = "0.8.3", default-features = false, features = ["http1", "http2", "tokio", "tracing"] }
+axum-extra = { version = "0.10.1", default-features = false, features = ["async-read-body", "typed-header"] }
+clap = { version = "4.5.35", default-features = false, features = ["color", "derive", "help", "suggestions"] }
 clap-verbosity-flag = { version = "3.0.2", default-features = false, features = ["tracing"] }
-clap_complete = "4.5.47"
-httpdate = "1.0.3"
-humantime = "2.2.0"
-mime = "0.3.17"
-mime_guess = "2.0.5"
-percent-encoding = "2.3.1"
-tokio = { version = "1.44.2", features = ["full"] }
+clap_complete = { version = "4.5.47", default-features = false }
+httpdate = { version = "1.0.3", default-features = false }
+humantime = { version = "2.2.0", default-features = false }
+mime = { version = "0.3.17", default-features = false }
+mime_guess = { version = "2.0.5", default-features = false }
+percent-encoding = { version = "2.3.1", default-features = false }
+tokio = { version = "1.44.2", default-features = false, features = ["rt-multi-thread", "signal"] }
 tokio-util = { version = "0.7.14", default-features = false, features = ["io"] }
-tower = { version = "0.5.2", features = ["util"] }
-tower-http = { version = "0.6.2", features = ["fs", "trace", "compression-full", "timeout"] }
-tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+tower = { version = "0.5.2", default-features = false, features = ["util"] }
+tower-http = { version = "0.6.2", default-features = false, features = ["fs", "trace", "timeout"] }
+tracing = { version = "0.1.41", default-features = false }
+tracing-subscriber = { version = "0.3.19", default-features = false, features = ["ansi", "env-filter", "fmt"] }
